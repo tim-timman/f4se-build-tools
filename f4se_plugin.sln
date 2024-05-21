@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27130.2026
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "common_vc11", "..\build\f4se\src\common\common_vc11.vcxproj", "{D4C128A1-73DC-4941-A453-CE55AF239BA8}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "common_vc11", "common\common\common_vc11.vcxproj", "{D4C128A1-73DC-4941-A453-CE55AF239BA8}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "f4se", "..\build\f4se\src\f4se\f4se\f4se.vcxproj", "{A236F69D-8FF9-4491-AC5F-45BF49448BBE}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "f4se", "f4se\f4se\f4se.vcxproj", "{A236F69D-8FF9-4491-AC5F-45BF49448BBE}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "f4se_common", "..\build\f4se\src\f4se\f4se_common\f4se_common.vcxproj", "{20C6411C-596F-4B85-BE4E-8BC91F59D8A6}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "f4se_common", "f4se\f4se_common\f4se_common.vcxproj", "{20C6411C-596F-4B85-BE4E-8BC91F59D8A6}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PLUGIN_NAME", "PLUGIN_DIR", "{00000000-0000-0000-0000-000000000000}"
 EndProject
