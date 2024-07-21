@@ -27,7 +27,6 @@ class Context(argparse.Namespace):
     f4se_dir: Path
     f4se_common_dir: Path
     src_project: Path
-    build_project: Path
     build_solution: Path
 
 
@@ -44,8 +43,8 @@ def main():
 
     with contextlib.redirect_stdout(sys.stderr):
         fetch_f4se(ctx)
-        patch_f4se(ctx)
-        update_project_references(ctx)
+        setup_f4se(ctx)
+        # patch_f4se(ctx)
         make_solution(ctx)
         build_plugin(ctx)
         package_plugin(ctx)
@@ -101,6 +100,28 @@ def fetch_f4se(ctx: Context):
     ctx.f4se_common_dir = f4se_common_dir
 
 
+def setup_f4se(ctx: Context):
+    """
+    Setup F4SE as a static library
+    """
+    common_build_dir = ctx.f4se_common_dir / "build"
+    f4se_build_dir = ctx.f4se_dir / "build"
+    cmds: list[list[str]] = [
+        # Prepare common
+        ["cmake", "-B", common_build_dir, "-S", ctx.f4se_common_dir, "-DCMAKE_INSTALL_PREFIX=extern"],
+        # Build common
+        ["cmake", "--build", common_build_dir, "--config", "Release", "--target", "install"],
+        # Prepare f4se
+        ["cmake", "-B", f4se_build_dir, "-S", ctx.f4se_dir, "-DCMAKE_INSTALL_PREFIX=extern", "-DF4SE_STATIC_LIB=ON"],
+    ]
+    try:
+        for cmd in cmds:
+            print(f"Running: {shlex.join(map(str, cmd))}")
+            subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        raise SystemExit(e.returncode)
+
+
 def add_include_line(filepath: Path, include_line: str) -> bool:
     if not include_line.endswith("\n"):
         include_line = f"{include_line}\n"
@@ -154,31 +175,6 @@ def patch_f4se(ctx: Context):
     print(f"Patched: {num_patches_applied}/{len(patches)}")
 
 
-def update_project_references(ctx: Context):
-    """
-    Replaces $(SolutionDir) in the reference paths of the supplied
-    project file with the specified directory.
-    The first vcxproj found in the project directory will be used.
-    Creates build.vcxproj in the build directory.
-    """
-    ctx.src_project = next(ctx.project_dir.glob("*.vcxproj"))
-    print(f"Project Path: {ctx.src_project}")
-
-    # project_text = ctx.src_project.read_text("utf-8")
-    # Update project references
-    # sub_text = re.sub(
-    #     r'(<ProjectReference Include=")'
-    #     r'(\$\(SolutionDir\))'
-    #     r'(.+">[\S\s]*?</ProjectReference>)',
-    #     repl=rf"\1{str(ctx.f4se_dir).replace("\\", r"\\")}\3",
-    #     string=project_text,
-    #     flags=re.MULTILINE
-    # )
-    ctx.build_project = ctx.build_dir / "build.vcxproj"
-    # ctx.build_project.write_text(sub_text, "utf-8")
-    shutil.copy(ctx.src_project, ctx.build_project)
-
-
 def make_solution(ctx: Context):
     """
     Creates a f4se_plugin.sln solution file to compile the specified project
@@ -191,6 +187,9 @@ def make_solution(ctx: Context):
     # Backreference 2 holds the values
     re_proj_name = re.compile(r'(<PropertyGroup.*Label="Globals">[\S\s]*?<RootNamespace>)(.*)(</RootNamespace>[\S\s]*?</PropertyGroup>)', re.MULTILINE)
     re_proj_guid = re.compile(r'(<PropertyGroup.*Label="Globals">[\S\s]*?<ProjectGuid>)(.*)(</ProjectGuid>[\S\s]*?</PropertyGroup>)', re.MULTILINE)
+
+    ctx.src_project = next(ctx.project_dir.glob("*.vcxproj"))
+    print(f"Project Path: {ctx.src_project}")
 
     project_text = ctx.src_project.read_text("utf-8")
     name_match = re_proj_name.search(project_text)
@@ -207,7 +206,7 @@ def make_solution(ctx: Context):
     # Update project references
     from pathlib import PureWindowsPath
     solution_text = re_project.sub(
-        rf"\1{plugin_name}\2{str(ctx.build_project.relative_to(ctx.build_dir)).replace("\\", r"\\")}\3",
+        rf"\1{plugin_name}\2{str(ctx.src_project.relative_to(ctx.build_dir, walk_up=True)).replace("\\", r"\\")}\3",
         solution_text)
     solution_text = re_guid.sub(rf"\1{plugin_guid}\2", solution_text)
 
@@ -246,7 +245,7 @@ def package_plugin(ctx: Context):
     ctx.dist_dir.mkdir(exist_ok=True)
     with zipfile.ZipFile(ctx.dist_dir / f"{archive_name}.zip", "w") as zipf:
         print(f"Adding: {plugin_dll}")
-        zipf.write(plugin_dll, f"Data/F4SE/Plugins/{plugin_dll}")
+        zipf.write(plugin_dll, f"Data/F4SE/Plugins/{plugin_dll.name}")
         if ctx.include_extras is not None:
             for dir_name, _, filenames in ctx.include_extras.walk():
                 arch_dir = dir_name.relative_to(ctx.include_extras)
